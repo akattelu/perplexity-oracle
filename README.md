@@ -20,7 +20,7 @@ Oracle is a powerful command-line interface (CLI) for conducting AI-powered rese
 
 1.  Clone the repository:
     ```bash
-    git clone <repository-url>
+    git clone git@github.com:akattelu/perplexity-oracle.git
     cd oracle
     ```
 
@@ -47,15 +47,9 @@ You can add this to your shell's configuration file (e.g., `.bashrc`, `.zshrc`) 
 
 ## Usage
 
-### Running from Source
-
-```bash
-bun run src/index.ts "What is the capital of France?"
-```
-
 ### Running the Binary
 
-If you built the binary using `bun run build`:
+Build the binary using `bun run build`, then:
 
 ```bash
 ./oracle "What is the capital of France?"
