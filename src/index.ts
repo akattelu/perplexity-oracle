@@ -3,6 +3,12 @@ import Perplexity from '@perplexity-ai/perplexity_ai';
 
 const program = new Command();
 
+function isRunningInteractively(): boolean {
+  return !!(process.stdin.isTTY && process.stdout.isTTY);
+}
+
+const defaultStream = isRunningInteractively();
+
 program
   .name('oracle')
   .description('AI-powered research CLI using Perplexity')
@@ -10,7 +16,7 @@ program
   .argument('<query>', 'The research query')
   .option('-d, --deep', 'Use deep agentic research (pro-search)', false)
   .option('-m, --model <model>', 'Specify the model to use', 'sonar')
-  .option('-s, --stream', 'Stream the response in real-time', true)
+  .option('-s, --stream', 'Stream the response in real-time', defaultStream)
   .option('--no-stream', 'Disable streaming')
   .action(async (query, options) => {
     const apiKey = process.env.PERPLEXITY_API_KEY;
@@ -64,7 +70,9 @@ async function handleChatCompletion(client: Perplexity, query: string, options: 
           .join('');
       }
       
-      process.stdout.write(content);
+      // Filter out <think> tags and their content
+      const filteredContent = filterThinkTags(content);
+      process.stdout.write(filteredContent);
       
       const chunkWithCitations = chunk as { citations?: string[] };
       if (chunkWithCitations.citations) {
@@ -88,16 +96,24 @@ async function handleChatCompletion(client: Perplexity, query: string, options: 
 
     if (content) {
       if (typeof content === 'string') {
-        process.stdout.write(`${content}\n`);
+        const filteredContent = filterThinkTags(content);
+        process.stdout.write(`${filteredContent}\n`);
       } else if (Array.isArray(content)) {
         const text = content
           .map((c) => ('text' in c ? c.text : ''))
           .join('');
-        process.stdout.write(`${text}\n`);
+        const filteredContent = filterThinkTags(text);
+        process.stdout.write(`${filteredContent}\n`);
       }
       printSources(citations);
     }
   }
+}
+
+function filterThinkTags(content: string): string {
+  // Remove <think> tags and their content using regex
+  // This pattern matches <think>...</think> blocks and removes them
+  return content.replace(/<think>.*?<\/think>/gs, '');
 }
 
 function printSources(citations: string[]) {
