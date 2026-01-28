@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { PerplexityClient, ResearchOptions } from './perplexity-client';
+import { PerplexityClient, type ResearchOptions } from './perplexity-client';
 import { StreamThinkFilter, filterThinkTags } from './filter';
 
 const program = new Command();
@@ -48,7 +48,7 @@ async function handleChatCompletion(client: PerplexityClient, query: string, opt
   const response = await client.createCompletion(query, options);
 
   if (options.stream) {
-    const stream = response as AsyncIterable<any>;
+    const stream = response as unknown as AsyncIterable<any>;
     let citations: string[] = [];
     const filter = new StreamThinkFilter();
 

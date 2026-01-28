@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "build": "bun build --compile --outfile=oracle src/index.ts",
-    "start": "bun run src/index.ts"
+    "start": "bun run src/index.ts",
+    "check": "bun tsc"
   },
   "devDependencies": {
     "@types/bun": "latest"
