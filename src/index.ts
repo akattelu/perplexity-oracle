@@ -1,5 +1,6 @@
 import { Command } from 'commander';
-import Perplexity from '@perplexity-ai/perplexity_ai';
+import { PerplexityClient, ResearchOptions } from './perplexity-client';
+import { StreamThinkFilter, filterThinkTags } from './filter';
 
 const program = new Command();
 
@@ -26,12 +27,12 @@ program
       process.exit(1);
     }
 
-    const client = new Perplexity({ apiKey });
+    const client = new PerplexityClient(apiKey);
 
     try {
       const model = options.deep ? 'sonar-deep-research' : options.model;
       
-      const researchOptions = {
+      const researchOptions: ResearchOptions = {
         model: model,
         stream: options.stream,
       };
@@ -43,20 +44,13 @@ program
     }
   });
 
-interface ResearchOptions {
-  model: string;
-  stream: boolean;
-}
+async function handleChatCompletion(client: PerplexityClient, query: string, options: ResearchOptions) {
+  const response = await client.createCompletion(query, options);
 
-async function handleChatCompletion(client: Perplexity, query: string, options: ResearchOptions) {
   if (options.stream) {
-    const stream = await client.chat.completions.create({
-      model: options.model,
-      messages: [{ role: 'user', content: query }],
-      stream: true,
-    });
-
+    const stream = response as AsyncIterable<any>;
     let citations: string[] = [];
+    const filter = new StreamThinkFilter();
 
     for await (const chunk of stream) {
       const deltaContent = chunk.choices[0]?.delta?.content || '';
@@ -66,12 +60,11 @@ async function handleChatCompletion(client: Perplexity, query: string, options: 
         content = deltaContent;
       } else if (Array.isArray(deltaContent)) {
         content = deltaContent
-          .map((c) => ('text' in c ? c.text : ''))
+          .map((c: any) => ('text' in c ? c.text : ''))
           .join('');
       }
       
-      // Filter out <think> tags and their content
-      const filteredContent = filterThinkTags(content);
+      const filteredContent = filter.process(content);
       process.stdout.write(filteredContent);
       
       const chunkWithCitations = chunk as { citations?: string[] };
@@ -79,6 +72,8 @@ async function handleChatCompletion(client: Perplexity, query: string, options: 
         citations = chunkWithCitations.citations;
       }
     }
+    
+    process.stdout.write(filter.flush());
 
     if (citations.length > 0) {
       printSources(citations);
@@ -86,13 +81,9 @@ async function handleChatCompletion(client: Perplexity, query: string, options: 
       process.stdout.write('\n');
     }
   } else {
-    const response = await client.chat.completions.create({
-      model: options.model,
-      messages: [{ role: 'user', content: query }],
-    });
-
-    const content = response.choices[0]?.message?.content;
-    const citations = (response as { citations?: string[] }).citations || [];
+    const completeResponse = response as any;
+    const content = completeResponse.choices[0]?.message?.content;
+    const citations = (completeResponse as { citations?: string[] }).citations || [];
 
     if (content) {
       if (typeof content === 'string') {
@@ -100,7 +91,7 @@ async function handleChatCompletion(client: Perplexity, query: string, options: 
         process.stdout.write(`${filteredContent}\n`);
       } else if (Array.isArray(content)) {
         const text = content
-          .map((c) => ('text' in c ? c.text : ''))
+          .map((c: any) => ('text' in c ? c.text : ''))
           .join('');
         const filteredContent = filterThinkTags(text);
         process.stdout.write(`${filteredContent}\n`);
@@ -108,12 +99,6 @@ async function handleChatCompletion(client: Perplexity, query: string, options: 
       printSources(citations);
     }
   }
-}
-
-function filterThinkTags(content: string): string {
-  // Remove <think> tags and their content using regex
-  // This pattern matches <think>...</think> blocks and removes them
-  return content.replace(/<think>.*?<\/think>/gs, '');
 }
 
 function printSources(citations: string[]) {
