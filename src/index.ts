@@ -12,8 +12,6 @@ program
   .option('-m, --model <model>', 'Specify the model to use', 'sonar')
   .option('-s, --stream', 'Stream the response in real-time', true)
   .option('--no-stream', 'Disable streaming')
-  .option('-t, --temperature <number>', 'Sampling temperature', Number.parseFloat, 0.2)
-  .option('--max-tokens <number>', 'Maximum tokens to generate', (v) => Number.parseInt(v, 10))
   .action(async (query, options) => {
     const apiKey = process.env.PERPLEXITY_API_KEY;
     if (!apiKey) {
@@ -29,8 +27,6 @@ program
       
       const researchOptions = {
         model: model,
-        temperature: options.temperature,
-        maxTokens: options.maxTokens,
         stream: options.stream,
       };
 
@@ -43,8 +39,6 @@ program
 
 interface ResearchOptions {
   model: string;
-  temperature: number;
-  maxTokens?: number;
   stream: boolean;
 }
 
@@ -53,8 +47,6 @@ async function handleChatCompletion(client: Perplexity, query: string, options: 
     const stream = await client.chat.completions.create({
       model: options.model,
       messages: [{ role: 'user', content: query }],
-      temperature: options.temperature,
-      max_tokens: options.maxTokens,
       stream: true,
     });
 
@@ -89,8 +81,6 @@ async function handleChatCompletion(client: Perplexity, query: string, options: 
     const response = await client.chat.completions.create({
       model: options.model,
       messages: [{ role: 'user', content: query }],
-      temperature: options.temperature,
-      max_tokens: options.maxTokens,
     });
 
     const content = response.choices[0]?.message?.content;
