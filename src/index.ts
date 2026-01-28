@@ -25,18 +25,16 @@ program
     const client = new Perplexity({ apiKey });
 
     try {
+      const model = options.deep ? 'sonar-deep-research' : options.model;
+      
       const researchOptions = {
-        model: options.model,
+        model: model,
         temperature: options.temperature,
         maxTokens: options.maxTokens,
         stream: options.stream,
       };
 
-      if (options.deep) {
-        await handleDeepResearch(client, query, researchOptions);
-      } else {
-        await handleChatCompletion(client, query, researchOptions);
-      }
+      await handleChatCompletion(client, query, researchOptions);
     } catch (error) {
       console.error('\nError:', error instanceof Error ? error.message : String(error));
       process.exit(1);
@@ -107,52 +105,6 @@ async function handleChatCompletion(client: Perplexity, query: string, options: 
           .join('');
         process.stdout.write(`${text}\n`);
       }
-      printSources(citations);
-    }
-  }
-}
-
-async function handleDeepResearch(client: Perplexity, query: string, options: ResearchOptions) {
-  // Define types for agentic research response
-  interface AgenticResponse {
-    output_text: string | { delta?: string };
-    citations?: string[];
-  }
-
-  const agenticClient = client as unknown as { 
-    responses: { 
-      create: (params: { preset: string, input: string, stream?: boolean }) => Promise<AgenticResponse | AsyncIterable<AgenticResponse>> 
-    } 
-  };
-
-  if (options.stream) {
-    const stream = await agenticClient.responses.create({
-      preset: 'pro-search',
-      input: query,
-      stream: true,
-    }) as AsyncIterable<AgenticResponse>;
-
-    let citations: string[] = [];
-    for await (const chunk of stream) {
-      const content = typeof chunk.output_text === 'string' 
-        ? chunk.output_text 
-        : chunk.output_text?.delta || '';
-      process.stdout.write(content);
-      if (chunk.citations) {
-        citations = chunk.citations;
-      }
-    }
-    printSources(citations);
-  } else {
-    const response = await agenticClient.responses.create({
-      preset: 'pro-search',
-      input: query,
-    }) as AgenticResponse;
-    
-    const content = typeof response.output_text === 'string' ? response.output_text : '';
-    const citations = response.citations || [];
-    if (content) {
-      process.stdout.write(`${content}\n`);
       printSources(citations);
     }
   }
